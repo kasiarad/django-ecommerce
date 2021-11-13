@@ -13,5 +13,9 @@ urlpatterns=[
     path('process_order/', views.processOrder, name="process_order"),
     path('login/', views.loginPage, name="login"),
     path('register/', views.registerPage, name="register"),
+    path('logout/', views.LogoutView.as_view(), name='logout'),
+    path('categories/', views.CategoryView.as_view(), name='categories'),
+    path('category/<int:pk>/', views.SpecificCategory.as_view(), name='category'),
+    path('product/<int:pk>/', views.ProductView.as_view(), name='product'),
 
 ]

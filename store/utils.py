@@ -1,6 +1,6 @@
-import json
+from .views import *
 from .models import *
-
+import json
 
 def cookieCart(request):
 	# Create empty cart for now for non-logged in user
@@ -39,8 +39,11 @@ def cookieCart(request):
 
 def cartData(request):
 	if request.user.is_authenticated:
-		customer = request.user
-		order, created = Order.objects.get_or_create(customer=customer, complete=False)
+		customer = CustomersOrder.objects.get_or_create(customer=request.user)
+		if order is none:
+		order = Order.objects.get(complete=False)
+		customer[0].order = order
+		customer[0].save()
 		items = order.orderitem_set.all()
 		cartItems = order.all_cart_quantity
 	else:
@@ -58,22 +61,16 @@ def guestOrder(request, data):
 	cookieData = cookieCart(request)
 	items = cookieData['items']
 
-	customer, created = Customer.objects.get_or_create(
-			email=email,
-			)
-	customer.name = name
-	customer.save()
-
 	order = Order.objects.create(
-		customer=customer,
 		complete=False,
-		)
-
+	)
+	print(items)
 	for item in items:
-		product = Product.objects.get(id=item['id'])
+		product = Product.objects.get(id=item['product']['id'])
 		orderItem = OrderItem.objects.create(
 			product=product,
 			order=order,
-			quantity=item['quantity'],
+			quantity=(item['quantity'] if item['quantity'] > 0 else -1 * item['quantity']),
+			# negative quantity = freebies
 		)
-	return customer, order
+	return name, order

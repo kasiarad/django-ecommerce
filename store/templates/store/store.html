@@ -11,10 +11,12 @@
 
             <div class="box-element product">
                 <h6><strong>{{product.name}}</strong></h6>
+                <h7>{{product.category}}</h7>
                 <hr>
 
+
                 <button data-product="{{product.id}}" data-action="add" class="btn btn-outline-secondary add-btn update-btn">Add to Cart</button>
-                <a class="btn btn-outline-success" href="{% url 'cart' %}">View</a>
+                <a class="btn btn-outline-success" href="{% url 'product' product.pk%}">View</a>
                 <h4 style="display: inline-block; float: right"><strong>
                     ${{product.price|floatformat:2}}</strong></h4>
 

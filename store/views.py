@@ -20,21 +20,100 @@ class StoreView(View):
     def get(self, request):
 
         if request.user.is_authenticated:
+            customer=CustomersOrder.objects.get_or_create(customer=request.user)
+            order = Order.objects.create(complete=False)
+            customer[0].order=order
+            customer[0].save()
+            items = order.orderitem_set.all()
+            cartItems = order.all_cart_quantity
+        else:
+            cookieData = cookieCart(request)
+            cartItems = cookieData['cartItems']
+            order = cookieData['order']
+            items = cookieData['items']
+        products=Product.objects.all()
+        context = {'products':products,'items': items, 'cartItems': cartItems, 'order': order}
+        return render(request, 'store/store.html', context)
+
+class CategoryView(View):
+    def get(self, request):
+
+        if request.user.is_authenticated:
+            customer=CustomersOrder.objects.get_or_create(customer=request.user)
+            order = Order.objects.create(complete=False)
+            customer[0].order=order
+            customer[0].save()
+            items = order.orderitem_set.all()
+            cartItems = order.all_cart_quantity
+        else:
+            cookieData = cookieCart(request)
+            cartItems = cookieData['cartItems']
+            order = cookieData['order']
+            items = cookieData['items']
+        categories = Category.objects.all()
+        products = Product.objects.all()
+
+        context = {'categories':categories,'products':products,'items': items, 'cartItems': cartItems, 'order': order}
+        return render(request, 'store/categories.html', context)
+
+class SpecificCategory(View):
+    def get(self, request,pk):
+
+        if request.user.is_authenticated:
+            customer=CustomersOrder.objects.get_or_create(customer=request.user)
+            order = Order.objects.create(complete=False)
+            customer[0].order=order
+            customer[0].save()
+            items = order.orderitem_set.all()
+            cartItems = order.all_cart_quantity
+        else:
+            cookieData = cookieCart(request)
+            cartItems = cookieData['cartItems']
+            order = cookieData['order']
+            items = cookieData['items']
+        categories = Category.objects.all()
+        products=Product.objects.filter(category=pk)
+
+
+        context = {'categories':categories,'products':products,'items': items, 'cartItems': cartItems, 'order': order}
+        return render(request, 'store/category.html', context)
+
+
+class ProductView(View):
+    def get(self, request, pk):
+        if request.user.is_authenticated:
             order, created = Order.objects.get_or_create(customer=request.user, complete=False)
             items = order.orderitem_set.all()
             cartItems = order.all_cart_quantity
         else:
-            items = []
-            order = {'all_cart_value':0,'all_cart_quantity':0, 'shipping':False}
-            cartItems = order['all_cart_quantity']
-        products=Product.objects.all()
-        context={'products':products, 'cartItems':cartItems}
-        return render(request, 'store/store.html', context)
+            cookieData = cookieCart(request)
+            cartItems = cookieData['cartItems']
+            order = cookieData['order']
+            items = cookieData['items']
+
+        product= get_object_or_404(Product, pk=pk)
+        context = {'product': product, 'items': items, 'cartItems': cartItems,
+                   'order': order}
+
+        return render(request, 'store/product.html', context)
 
 
 class About(View):
+
     def get(self,request):
-        context={}
+        if request.user.is_authenticated:
+            customer = CustomersOrder.objects.get_or_create(customer=request.user)
+            order = Order.objects.create(complete=False)
+            customer[0].order = order
+            customer[0].save()
+            items = order.orderitem_set.all()
+            cartItems = order.all_cart_quantity
+        else:
+            cookieData = cookieCart(request)
+            cartItems = cookieData['cartItems']
+            order = cookieData['order']
+            items = cookieData['items']
+        context={'items': items,'cartItems':cartItems, 'order':order}
         return render(request, 'store/about.html', context)
 
 class CartView(View):
@@ -47,10 +126,8 @@ class CartView(View):
         context = {'items': items, 'order':order, 'cartItems':cartItems}
         return render(request, 'store/cart.html', context)
 
-from django.views.decorators.csrf import csrf_exempt
 
 
-@csrf_exempt
 def checkout(request):
     if request.user.is_authenticated:
         customer = request.user
@@ -75,7 +152,11 @@ def updateItem(request):
 
     customer=request.user
     product=Product.objects.get(id=productId)
-    order, created = Order.objects.get_or_create(customer=customer, complete=False)
+
+    customer = CustomersOrder.objects.get_or_create(customer=request.user)
+    order = Order.objects.create(complete=False)
+    customer[0].order = order
+    customer[0].save()
 
     orderItem, created= OrderItem.objects.get_or_create(order=order, product=product)
 
@@ -94,6 +175,10 @@ def updateItem(request):
 
 
 def registerPage(request):
+    cookieData = cookieCart(request)
+    cartItems = cookieData['cartItems']
+    order = cookieData['order']
+    items = cookieData['items']
     if request.user.is_authenticated:
         return redirect('store')
     else:
@@ -113,8 +198,9 @@ def registerPage(request):
                         email=form.cleaned_data['email'],
                         password=form.cleaned_data['password']
                     )
-                    print("Here")
                     messages.success(request, 'Account was created for {}'.format(user))
+                    login(request, user)
+
                     return redirect('store')
                 else:
                     messages.error(request, 'Data is invalid')
@@ -142,6 +228,10 @@ def loginPage(request):
     return render(request, 'store/login.html', {'page':page})
 
 
+
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt
 def processOrder(request):
     transaction_id = datetime.datetime.now().timestamp()
     data = json.loads(request.body)
@@ -156,7 +246,6 @@ def processOrder(request):
             order.complete = True
         order.save()
 
-
     else:
         total, order=guestOrder(request,data)
 
@@ -165,16 +254,33 @@ def processOrder(request):
 
     if total == order.all_cart_value:
         order.complete = True
-    order.save()
 
-    ShippingAddress.objects.create(
-            customer=customer,
+    order.save()
+    if request.user.is_authenticated:
+        ShippingAddress.objects.create(
+        customer=customer,
+        order = order,
+        address = data['shipping']['address'],
+        city = data['shipping']['city'],
+        postcode = data['shipping']['postcode'],
+        )
+
+
+    else:
+        ShippingAddress.objects.create(
             order=order,
             address=data['shipping']['address'],
             city=data['shipping']['city'],
             postcode=data['shipping']['postcode'],
-        )
+            )
+
     return JsonResponse('Payment submitted..', safe=False)
+
+
+class LogoutView(View):
+    def get(self, request):
+        logout(request)
+        return HttpResponseRedirect(reverse('login'))
 
 # Create your views here.
 
